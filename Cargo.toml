@@ -1,0 +1,20 @@
+[package]
+name = "rust_max_heap"
+version = "0.1.0"
+edition = "2021"
+authors = ["victorhu493@gmail.com"]
+description = "NumberContainers implemented in Rust with PyO3"
+license = "MIT"
+
+[lib]
+name = "rust_max_heap"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.18", features = ["extension-module"] }
+# 其他 Rust 依赖可以加在这里，例如 collections
+
+[profile.release]
+opt-level = 3     # 最大化性能优化
+lto = true        # 链接时优化
+codegen-units = 1 # 进一步优化性能
