@@ -1,7 +1,14 @@
 import os
 from typing import BinaryIO
+from multiprocessing import Pool
+import re,collections
+import regex
+from collections import Counter
+import heapq
+from functools import partial
 
-
+from . import merge
+import os
 def find_chunk_boundaries(
     file: BinaryIO,
     desired_num_chunks: int,
@@ -48,15 +55,68 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
+PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
-## Usage
-with open(..., "rb") as f:
+def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
+    start, end = boundary_pair
+    local_wc = collections.Counter()
+    with open(input_path, "rb") as f:
+        f.seek(start)
+        chunk = f.read(end - start).decode("utf-8", errors="ignore")
+        parts = re.split(special_pattern,chunk)
+        for part in filter(None, parts):
+            for match in regex.finditer(PAT, part):
+                word = match.group()
+                bword = tuple(bytes([b]) for b in word.encode("utf-8"))
+                local_wc[bword]+=1
+    return local_wc
+
+def internal_run_train_bpe(
+    input_path: str | os.PathLike,
+    vocab_size: int,
+    special_tokens: list[str],
+    **kwargs,
+) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
+    # vocabulary initialization
+    vocab = collections.defaultdict(bytes)
+    merges = collections.defaultdict(int)
+
+    escaped_tokens = [re.escape(token) for token in special_tokens]
+    special_pattern = "|".join(escaped_tokens)
+    
+    vocab = {i: bytes([i]) for i in range(256)}
+    cnt = 256
+    for token in special_tokens:
+        vocab[cnt] = token.encode("utf-8")
+        cnt += 1
+    
     num_processes = 4
-    boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+    with open(input_path, "rb") as f:
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
     # The following is a serial implementation, but you can parallelize this
     # by sending each start/end pair to a set of processes.
-    for start, end in zip(boundaries[:-1], boundaries[1:]):
-        f.seek(start)
-        chunk = f.read(end - start).decode("utf-8", errors="ignore")
-        # Run pre-tokenization on your chunk and store the counts for each pre-token
+    boundary_pairs = list(zip(boundaries[:-1], boundaries[1:]))
+    worker = partial(process_chunk_to_counts,input_path=input_path,special_pattern=special_pattern)
+    with Pool(num_processes) as pool:
+        wc_list = pool.map(worker,boundary_pairs)
+
+    wc = collections.Counter()
+    for c in wc_list:
+        wc.update(c)
+
+    # compute bpe merges
+    merges = merge.vocab_merge(wc,vocab_size-cnt)
+
+    res = []
+    for pair in merges:
+        vocab[cnt]=b''.join(pair[0])
+        cnt += 1
+        res.append(pair[0])
+    return (vocab, res)
+def main():
+    internal_run_train_bpe("/root/projects/cs336/assignment1-basics/tests/fixtures/corpus.en",500,["<|endoftext|>"])
+    
+if __name__ == "__main__":
+    main()
+
