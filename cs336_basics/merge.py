@@ -1,11 +1,15 @@
 import re, collections
 
+w_pairs = collections.defaultdict(lambda: collections.defaultdict(int))
 
 def get_stats(vocab):
+    global w_pairs
     pairs = collections.defaultdict(int)
     for symbols, freq in vocab.items():
         for i in range(len(symbols)-1):
-            pairs[symbols[i],symbols[i+1]] += freq
+            pair = (symbols[i], symbols[i+1])
+            pairs[pair] += freq
+            w_pairs[pair][symbols] = freq
     return pairs
 
 def merge_pair(seq: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
@@ -23,31 +27,41 @@ def merge_pair(seq: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
 
     return tuple(out)
 
-def merge_vocab(pair:tuple[bytes], v_in:dict[tuple[bytes], int]):
-    v_out = collections.defaultdict(int)
-
-    for word,freq in v_in.items():
-        w_out = merge_pair(word,pair)
-        if w_out!=word:
+def merge_vocab(pairs: dict, pair: tuple[bytes], v_in_items: list):
+    global w_pairs
+    for word, freq in v_in_items:
+        if word not in w_pairs[pair]:
+            continue
+        w_out = merge_pair(word, pair)
+        if w_out != word:
             for i in range(len(word)-1):
-                pairs[word[i],word[i+1]]-=freq
+                p_old = (word[i], word[i+1])
+                pairs[p_old] -= freq
+                if pairs[p_old] <= 0:
+                    del pairs[p_old]
+                if word in w_pairs[p_old]:
+                    del w_pairs[p_old][word]
+                    if not w_pairs[p_old]:
+                        del w_pairs[p_old]
             for i in range(len(w_out)-1):
-                pairs[w_out[i],w_out[i+1]]+=freq
-        v_out[w_out] = v_in[word]
-    assert len(v_in)==len(v_out)
-    return v_out
+                p_new = (w_out[i], w_out[i+1])
+                pairs[p_new] += freq
+                w_pairs[p_new][w_out] = freq
+    return pairs
 
-def vocab_merge(vocab,num_merges) -> dict[tuple[bytes],int]:
+def vocab_merge(vocab, num_merges) -> list:
+    global w_pairs
+    w_pairs.clear()
     merges = []
-    global pairs
-
+    pairs = get_stats(vocab)
     for i in range(num_merges):
-        pairs = get_stats(vocab)
-        if len(pairs)==0:
+        if len(pairs) == 0:
             break
         best = max(pairs.items(), key=lambda kv: (kv[1], kv[0]))
-
-        vocab = merge_vocab(best[0], vocab)
+        best_pair = best[0]
+        v_in_items = list(w_pairs[best_pair].items())
+        pairs = merge_vocab(pairs, best_pair, v_in_items)
         merges.append(best)
-
+        if best_pair in pairs:
+            del pairs[best_pair]
     return merges

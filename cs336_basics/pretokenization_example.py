@@ -55,7 +55,7 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
-PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+PAT = regex.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
 def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
     start, end = boundary_pair
@@ -65,9 +65,9 @@ def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
         chunk = f.read(end - start).decode("utf-8", errors="ignore")
         parts = re.split(special_pattern,chunk)
         for part in filter(None, parts):
-            for match in regex.finditer(PAT, part):
+            for match in PAT.finditer(part):
                 word = match.group()
-                bword = tuple(bytes([b]) for b in word.encode("utf-8"))
+                bword = tuple(word.encode("utf-8")[i:i+1] for i in range(len(word.encode("utf-8"))))
                 local_wc[bword]+=1
     return local_wc
 
@@ -109,10 +109,11 @@ def internal_run_train_bpe(
     merges = merge.vocab_merge(wc,vocab_size-cnt)
 
     res = []
-    for pair in merges:
-        vocab[cnt]=b''.join(pair[0])
+    for pair_data in merges:
+        pair = pair_data[0]
+        vocab[cnt]=pair[0]+pair[1]
         cnt += 1
-        res.append(pair[0])
+        res.append(pair)
     return (vocab, res)
 def main():
     internal_run_train_bpe("/root/projects/cs336/assignment1-basics/tests/fixtures/corpus.en",500,["<|endoftext|>"])
