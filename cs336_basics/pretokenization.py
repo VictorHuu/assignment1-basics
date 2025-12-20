@@ -66,4 +66,19 @@ def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
                 local_wc[bword]+=1
     return local_wc
 
+def process_text_to_bytes_seq(text, special_pattern):
+    local_wc = []
+    parts = re.split(f"({special_pattern})", text) if special_pattern else [text]
+
+    for part in filter(None, parts):
+        if special_pattern and re.fullmatch(special_pattern, part):
+            local_wc.append((part.encode("utf-8"),))
+        else:
+            for match in PAT.finditer(part):
+                word = match.group()
+                bword = tuple(word.encode("utf-8")[i:i+1] for i in range(len(word.encode("utf-8"))))
+                local_wc.append(bword)
+    return local_wc
+
+
 
