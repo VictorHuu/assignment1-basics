@@ -1,6 +1,11 @@
 import re, collections
+import os
+from functools import partial
+from collections import Counter
+from multiprocessing import Pool
 
 from rust_max_heap import RustMaxHeap
+from . import pretokenization
 
 w_pairs = collections.defaultdict(lambda: collections.defaultdict(int))
 heaps = RustMaxHeap()
@@ -77,3 +82,48 @@ def vocab_merge(vocab, num_merges) -> list:
             heaps.remove(best_pair)
             del pairs[best_pair]
     return merges
+
+def internal_run_train_bpe(
+    input_path: str | os.PathLike,
+    vocab_size: int,
+    special_tokens: list[str],
+    **kwargs,
+) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
+    # vocabulary initialization
+    vocab = collections.defaultdict(bytes)
+    merges = collections.defaultdict(int)
+
+    escaped_tokens = [re.escape(token) for token in special_tokens]
+    special_pattern = "|".join(escaped_tokens)
+    
+    vocab = {i: bytes([i]) for i in range(256)}
+    cnt = 256
+    for token in special_tokens:
+        vocab[cnt] = token.encode("utf-8")
+        cnt += 1
+    
+    num_processes = 4
+    with open(input_path, "rb") as f:
+        boundaries = pretokenization.find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+
+    # The following is a serial implementation, but you can parallelize this
+    # by sending each start/end pair to a set of processes.
+    boundary_pairs = list(zip(boundaries[:-1], boundaries[1:]))
+    worker = partial(pretokenization.process_chunk_to_counts,input_path=input_path,special_pattern=special_pattern)
+    with Pool(num_processes) as pool:
+        wc_list = pool.map(worker,boundary_pairs)
+
+    wc = collections.Counter()
+    for c in wc_list:
+        wc.update(c)
+
+    # compute bpe merges
+    merges = vocab_merge(wc,vocab_size-cnt)
+
+    res = []
+    for pair_data in merges:
+        pair = pair_data[0]
+        vocab[cnt]=pair[0]+pair[1]
+        cnt += 1
+        res.append(pair)
+    return (vocab, res)

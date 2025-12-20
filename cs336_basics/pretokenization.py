@@ -1,14 +1,9 @@
 import os
 from typing import BinaryIO
-from multiprocessing import Pool
+
 import re,collections
 import regex
-from collections import Counter
-import heapq
-from functools import partial
 
-from . import merge
-import os
 def find_chunk_boundaries(
     file: BinaryIO,
     desired_num_chunks: int,
@@ -71,53 +66,4 @@ def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
                 local_wc[bword]+=1
     return local_wc
 
-def internal_run_train_bpe(
-    input_path: str | os.PathLike,
-    vocab_size: int,
-    special_tokens: list[str],
-    **kwargs,
-) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    # vocabulary initialization
-    vocab = collections.defaultdict(bytes)
-    merges = collections.defaultdict(int)
-
-    escaped_tokens = [re.escape(token) for token in special_tokens]
-    special_pattern = "|".join(escaped_tokens)
-    
-    vocab = {i: bytes([i]) for i in range(256)}
-    cnt = 256
-    for token in special_tokens:
-        vocab[cnt] = token.encode("utf-8")
-        cnt += 1
-    
-    num_processes = 4
-    with open(input_path, "rb") as f:
-        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
-
-    # The following is a serial implementation, but you can parallelize this
-    # by sending each start/end pair to a set of processes.
-    boundary_pairs = list(zip(boundaries[:-1], boundaries[1:]))
-    worker = partial(process_chunk_to_counts,input_path=input_path,special_pattern=special_pattern)
-    with Pool(num_processes) as pool:
-        wc_list = pool.map(worker,boundary_pairs)
-
-    wc = collections.Counter()
-    for c in wc_list:
-        wc.update(c)
-
-    # compute bpe merges
-    merges = merge.vocab_merge(wc,vocab_size-cnt)
-
-    res = []
-    for pair_data in merges:
-        pair = pair_data[0]
-        vocab[cnt]=pair[0]+pair[1]
-        cnt += 1
-        res.append(pair)
-    return (vocab, res)
-def main():
-    internal_run_train_bpe("/root/projects/cs336/assignment1-basics/tests/fixtures/corpus.en",500,["<|endoftext|>"])
-    
-if __name__ == "__main__":
-    main()
 
