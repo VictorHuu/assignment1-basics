@@ -11,6 +11,8 @@ from torch import Tensor
 
 from cs336_basics import merge
 from cs336_basics import encoding
+from cs336_basics import linear
+
 def run_linear(
     d_in: int,
     d_out: int,
@@ -30,7 +32,12 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    my_linear = linear.Linear(in_features=d_in,out_features=d_out)
+
+    my_linear.load_state_dict({
+        "weights":weights
+    })
+    return my_linear(in_features)
 
 
 def run_embedding(

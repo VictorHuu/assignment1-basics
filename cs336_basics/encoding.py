@@ -67,9 +67,8 @@ class Tokenizer:
             for token_id in self.encode(text):
                 yield token_id
     def decode(self, ids: list[int]) -> str:
-        res = b""
-        for sid in ids:
-            res += self.inv_vocab[sid] 
-        return res.decode("utf-8",errors="replace")
+        bytes_list=list(map(self.inv_vocab.get,ids))
+        string = b"".join(bytes_list).decode("utf-8",errors="replace")
+        return string
 
     
