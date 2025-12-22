@@ -18,9 +18,9 @@ class Tokenizer:
         if special_tokens is not None:
             sorted_special = sorted(special_tokens, key=len, reverse=True)
             escaped_tokens = [re.escape(token) for token in sorted_special]
-            self.special_pattern = "|".join(escaped_tokens)
+            self.special_pattern:str = "|".join(escaped_tokens)
         else:
-            self.special_pattern = ""
+            self.special_pattern:str = ""
 
     def load_byte_level_vocab(self,vocab_filepath: str) -> dict[int, bytes]:
         with open(vocab_filepath, "r", encoding="utf-8") as f:

@@ -66,7 +66,7 @@ def process_chunk_to_counts(boundary_pair,input_path,special_pattern):
                 local_wc[bword]+=1
     return local_wc
 
-def process_text_to_bytes_seq(text, special_pattern):
+def process_text_to_bytes_seq(text:str, special_pattern:str) -> list[tuple[bytes]]:
     local_wc = []
     parts = re.split(f"({special_pattern})", text) if special_pattern else [text]
 

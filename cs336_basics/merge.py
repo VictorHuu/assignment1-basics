@@ -22,7 +22,7 @@ def get_stats(vocab):
             w_pairs[pair][symbols] = freq
     return pairs
 
-def merge_pair(seq: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
+def merge_pair(seq: tuple[bytes], pair: tuple[bytes,bytes]) -> tuple[bytes]:
     merged = pair[0] + pair[1]
     out = []
     i = 0
@@ -37,7 +37,7 @@ def merge_pair(seq: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
 
     return tuple(out)
 
-def merge_vocab(pairs: dict, pair: tuple[bytes], v_in_items: list):
+def merge_vocab(pairs: dict, pair: tuple[bytes,bytes], v_in_items: list):
     global w_pairs
     global heaps
     for word, freq in v_in_items:
