@@ -13,6 +13,7 @@ from cs336_basics import merge
 from cs336_basics import encoding
 from cs336_basics import linear
 from cs336_basics import embedding
+from cs336_basics import rmsnorm
 
 def run_linear(
     d_in: int,
@@ -392,7 +393,12 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    my_rmsnorm = rmsnorm.RMSNorm(d_model=d_model,eps=eps)
+
+    my_rmsnorm.load_state_dict({
+        "weights":weights
+    })
+    return my_rmsnorm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
