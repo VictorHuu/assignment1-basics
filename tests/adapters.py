@@ -14,6 +14,7 @@ from cs336_basics import encoding
 from cs336_basics import linear
 from cs336_basics import embedding
 from cs336_basics import rmsnorm
+from cs336_basics import rope
 
 def run_linear(
     d_in: int,
@@ -91,6 +92,11 @@ def run_swiglu(
     Returns:
         Float[Tensor, "... d_model"]: Output embeddings of the same shape as the input embeddings.
     """
+    d_ff = (8 * d_model) // 3
+    d_ff = (d_ff +63) // 64 * 64
+    y = in_features @ w1_weight.t()
+    z = y * torch.sigmoid(y)
+    w = in_features @ w3_weight.t()
     # Example:
     # If your state dict keys match, you can use `load_state_dict()`
     # swiglu.load_state_dict(weights)
@@ -98,7 +104,7 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    return (z*w) @ w2_weight.t()
 
 
 def run_scaled_dot_product_attention(
@@ -203,6 +209,8 @@ def run_rope(
     in_query_or_key: Float[Tensor, " ... sequence_length d_k"],
     token_positions: Int[Tensor, " ... sequence_length"],
 ) -> Float[Tensor, " ... sequence_length d_k"]:
+    device = in_query_or_key.device
+    dtype = in_query_or_key.dtype
     """
     Run RoPE for a given input tensor.
 
@@ -215,7 +223,9 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    my_rope = rope.RoPE(theta=theta,d_k=d_k,max_seq_len=max_seq_len,device=device)
+    my_rope.to(dtype)
+    return my_rope(in_query_or_key,token_positions)
 
 
 def run_transformer_block(
