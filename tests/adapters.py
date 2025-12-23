@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
+import math
 
 import numpy.typing as npt
 import torch
@@ -15,6 +16,7 @@ from cs336_basics import linear
 from cs336_basics import embedding
 from cs336_basics import rmsnorm
 from cs336_basics import rope
+from cs336_basics import utility
 
 def run_linear(
     d_in: int,
@@ -125,7 +127,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    return utility.scaled_dot_product_attention(Q,K,V,mask)
 
 
 def run_multihead_self_attention(
@@ -461,7 +463,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    return utility.softmax(in_features,dim)
 
 
 def run_cross_entropy(
